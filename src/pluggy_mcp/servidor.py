@@ -61,6 +61,30 @@ def resumo_transacao(tx: dict, conta_id: str) -> dict:
     }
 
 
+# Codigo COMPE (inicio do transferNumber da conta corrente) -> nome do banco.
+BANCOS_COMPE = {
+    "001": "Banco do Brasil", "033": "Santander", "077": "Inter", "102": "XP",
+    "104": "Caixa", "208": "BTG Pactual", "212": "Banco Original", "237": "Bradesco",
+    "260": "Nubank", "290": "PagBank", "323": "Mercado Pago", "336": "C6 Bank",
+    "341": "Itau", "380": "PicPay", "422": "Safra", "655": "Votorantim",
+    "748": "Sicredi", "756": "Sicoob",
+}
+
+
+def deduzir_banco(contas: list[dict]) -> str | None:
+    """Pelo MeuPluggy o conector e sempre 'MeuPluggy': o banco sai das contas.
+    Ordem: codigo COMPE da conta corrente, nome da conta corrente, nome da 1a conta."""
+    correntes = [c for c in contas if c.get("type") == "BANK"]
+    for c in correntes:
+        compe = str((c.get("bankData") or {}).get("transferNumber") or "").split("/")[0]
+        if compe in BANCOS_COMPE:
+            return BANCOS_COMPE[compe]
+    for c in correntes + contas:
+        if c.get("name"):
+            return c["name"]
+    return None
+
+
 @mcp.tool(annotations=SO_LEITURA)
 def listar_conexoes() -> list[dict]:
     """Conexoes (itens) configuradas: banco, status e data da ultima atualizacao."""
@@ -68,7 +92,8 @@ def listar_conexoes() -> list[dict]:
     for item_id in item_ids():
         item = cliente().item(item_id)
         saida.append({"item_id": item_id,
-                      "banco": (item.get("connector") or {}).get("name"),
+                      "banco": (deduzir_banco(cliente().contas(item_id))
+                                or (item.get("connector") or {}).get("name")),
                       "status": item.get("status"),
                       "atualizado_em": item.get("lastUpdatedAt"),
                       "consentimento_expira_em": item.get("consentExpiresAt")})
@@ -86,8 +111,10 @@ def listar_contas() -> list[dict]:
 
 @mcp.tool(annotations=SO_LEITURA)
 def saldo(conta_id: str) -> dict:
-    """Saldo atual de uma conta (consulta direta ao endpoint de saldo)."""
-    return cliente().saldo(conta_id)
+    """Saldo atual de uma conta, como o banco informou na ultima sincronizacao."""
+    c = cliente().conta(conta_id)
+    return {"conta_id": c["id"], "saldo": c.get("balance"), "moeda": c.get("currencyCode"),
+            "atualizado_em": c.get("updatedAt")}
 
 
 @mcp.tool(annotations=SO_LEITURA)

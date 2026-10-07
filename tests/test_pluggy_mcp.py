@@ -37,14 +37,16 @@ class ApiFalsa:
 
     def rotas(self, caminho, q):
         if caminho == f"/items/{ITEM}":
-            return {"id": ITEM, "status": "UPDATED", "connector": {"name": "Banco Ficticio"},
+            return {"id": ITEM, "status": "UPDATED", "connector": {"id": 200, "name": "MeuPluggy"},
                     "lastUpdatedAt": "2026-01-02T00:00:00Z",
                     "consentExpiresAt": "2027-01-01T00:00:00Z"}
         if caminho == "/accounts":
             assert q["itemId"] == ITEM
             return {"page": 1, "totalPages": 1, "results": [
                 {"id": CORRENTE, "itemId": ITEM, "type": "BANK", "subtype": "CHECKING_ACCOUNT",
-                 "name": "Conta", "balance": 100.0, "currencyCode": "BRL"},
+                 "name": "Conta", "balance": 100.0, "currencyCode": "BRL",
+                 "updatedAt": "2026-01-02T00:00:00Z",
+                 "bankData": {"transferNumber": "001/0000/000000-0"}},
                 {"id": CARTAO, "itemId": ITEM, "type": "CREDIT", "subtype": "CREDIT_CARD",
                  "name": "Cartao", "balance": 50.0, "currencyCode": "BRL"}]}
         if caminho == "/v2/transactions":
@@ -60,8 +62,11 @@ class ApiFalsa:
             return {"page": pagina, "totalPages": 2, "results": [
                 {"name": f"CDB {pagina}", "type": "FIXED_INCOME", "balance": 10.0 * pagina,
                  "currencyCode": "BRL", "institution": {"name": "Emissor Ficticio"}}]}
-        if caminho == f"/accounts/{CORRENTE}/balance":
-            return {"balance": 100.0}
+        if caminho.endswith("/balance"):
+            # Como a API real responde para itens MeuPluggy (nao Open Finance direto).
+            raise ErroPluggy("HTTP 400 em GET /balance: CONNECTOR_IS_NOT_OPEN_FINANCE")
+        if caminho == f"/accounts/{CORRENTE}":
+            return self.rotas("/accounts", {"itemId": ITEM})["results"][0]
         raise AssertionError(f"rota inesperada {caminho}")
 
     @staticmethod
@@ -98,7 +103,7 @@ def api(monkeypatch):
 
 def test_listar_conexoes(api):
     [c] = servidor.listar_conexoes()
-    assert c == {"item_id": ITEM, "banco": "Banco Ficticio", "status": "UPDATED",
+    assert c == {"item_id": ITEM, "banco": "Banco do Brasil", "status": "UPDATED",
                  "atualizado_em": "2026-01-02T00:00:00Z",
                  "consentimento_expira_em": "2027-01-01T00:00:00Z"}
 
@@ -106,7 +111,19 @@ def test_listar_conexoes(api):
 def test_listar_contas_e_saldo(api):
     contas = servidor.listar_contas()
     assert [c["conta_id"] for c in contas] == [CORRENTE, CARTAO]
-    assert servidor.saldo(CORRENTE) == {"balance": 100.0}
+    assert servidor.saldo(CORRENTE) == {"conta_id": CORRENTE, "saldo": 100.0, "moeda": "BRL",
+                                        "atualizado_em": "2026-01-02T00:00:00Z"}
+    assert not any(c.endswith("/balance") for _, c, _ in api.chamadas)
+
+
+@pytest.mark.parametrize("contas, esperado", [
+    ([{"type": "BANK", "name": "x", "bankData": {"transferNumber": "260/0001/1-1"}}], "Nubank"),
+    ([{"type": "BANK", "name": "Banco Sem Codigo", "bankData": {}}], "Banco Sem Codigo"),
+    ([{"type": "CREDIT", "name": "Cartao Generico"}], "Cartao Generico"),
+    ([], None),
+])
+def test_deduz_banco(contas, esperado):
+    assert servidor.deduzir_banco(contas) == esperado
 
 
 def test_transacoes_segue_cursor_e_repassa_filtro_de_data(api):
@@ -140,11 +157,11 @@ def test_gastos_por_categoria(api):
 def test_api_key_e_reaproveitada_e_renovada():
     falsa, agora = ApiFalsa(), [0.0]
     c = ClientePluggy("id-falso", "segredo-falso", falsa, relogio=lambda: agora[0])
-    c.saldo(CORRENTE)
-    c.saldo(CORRENTE)
+    c.conta(CORRENTE)
+    c.conta(CORRENTE)
     assert falsa.autenticacoes == 1
     agora[0] += 2 * 60 * 60
-    c.saldo(CORRENTE)
+    c.conta(CORRENTE)
     assert falsa.autenticacoes == 2
 
 

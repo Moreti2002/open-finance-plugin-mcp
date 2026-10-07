@@ -24,9 +24,9 @@ MCP. Os dados continuam armazenados na Pluggy, que é a intermediária regulada.
 
 | Ferramenta | O que devolve |
 |---|---|
-| `listar_conexoes` | Banco, status, última atualização e validade do consentimento de cada item |
+| `listar_conexoes` | Banco (deduzido pelo código COMPE da conta corrente, já que o conector é sempre "MeuPluggy"), status, última atualização e validade do consentimento de cada item |
 | `listar_contas` | Contas correntes, poupanças e cartões, com saldo |
-| `saldo` | Saldo atual de uma conta |
+| `saldo` | Saldo de uma conta, como o banco informou na última sincronização (vem de `/accounts/{id}`; o `/balance` não atende itens MeuPluggy) |
 | `transacoes` | Transações por período (`desde`, `ate`), de uma conta ou de todas |
 | `faturas` | Faturas de cartão: vencimento, fechamento, total, pagamento mínimo |
 | `investimentos` | Posições de investimento de todas as conexões |

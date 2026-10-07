@@ -87,8 +87,10 @@ class ClientePluggy:
     def contas(self, item_id: str) -> list[dict]:
         return self.paginado("/accounts", {"itemId": item_id})
 
-    def saldo(self, conta_id: str) -> dict:
-        return self.get(f"/accounts/{conta_id}/balance")
+    def conta(self, conta_id: str) -> dict:
+        # /accounts/{id}/balance responde 400 (CONNECTOR_IS_NOT_OPEN_FINANCE) para
+        # itens do MeuPluggy; o saldo ja vem na propria conta.
+        return self.get(f"/accounts/{conta_id}")
 
     def transacoes(self, conta_id: str, desde: str | None = None,
                    ate: str | None = None) -> list[dict]:
