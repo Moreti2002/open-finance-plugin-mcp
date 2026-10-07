@@ -1,0 +1,26 @@
+[project]
+name = "pluggy-mcp"
+version = "0.1.0"
+description = "Servidor MCP somente leitura para os dados do Meu Pluggy (Open Finance Brasil)"
+readme = "README.md"
+authors = [
+    { name = "João Moreti" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "mcp>=2.3.0",
+]
+
+license = "MIT"
+
+[project.scripts]
+pluggy-mcp = "pluggy_mcp.servidor:main"
+
+[build-system]
+requires = ["uv_build>=0.11.27,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
