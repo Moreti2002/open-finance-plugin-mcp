@@ -1,4 +1,4 @@
-# pluggy-mcp
+# Open Finance Plugin MCP
 
 Servidor MCP (Model Context Protocol) somente leitura que expõe os seus próprios
 dados financeiros do Open Finance Brasil, via [Meu Pluggy](https://meu.pluggy.ai),
